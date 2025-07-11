@@ -1,12 +1,10 @@
 from transformers import pipeline
 
-# Load the NER model (only once, globally)
-ner = pipeline("ner", model="dslim/bert-base-NER", aggregation_strategy="simple")
+# Load the pipeline once globally
+ner_pipeline = pipeline("token-classification", model="dslim/bert-base-NER", aggregation_strategy="simple")
 
-def extract_skills(text):
-    entities = ner(text)
-    return list(set([
-        ent['word']
-        for ent in entities
-        if ent['entity_group'] in ['ORG', 'MISC']
-    ]))
+def extract_skills(text: str):
+    entities = ner_pipeline(text)
+    # Filter for skill-like labels or just return all for now
+    extracted = [e['word'] for e in entities if e['entity_group'] in ["ORG", "MISC", "PER"]]
+    return list(set(extracted))  # Remove duplicates
