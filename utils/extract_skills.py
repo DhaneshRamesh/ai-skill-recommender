@@ -1,10 +1,22 @@
 from transformers import pipeline
 
-# Load the pipeline once globally
 ner_pipeline = pipeline("token-classification", model="dslim/bert-base-NER", aggregation_strategy="simple")
 
 def extract_skills(text: str):
     entities = ner_pipeline(text)
-    # Filter for skill-like labels or just return all for now
-    extracted = [e['word'] for e in entities if e['entity_group'] in ["ORG", "MISC", "PER"]]
-    return list(set(extracted))  # Remove duplicates
+
+    # Step 1: Filter labels
+    relevant = [e for e in entities if e['entity_group'] in ["ORG", "MISC", "PER"]]
+
+    # Step 2: Clean weird tokens (like ##ing or GitH)
+    cleaned = []
+    for ent in relevant:
+        word = ent['word']
+        if word.startswith("##"):
+            continue
+        if len(word) <= 1:  # Ignore single letters like "A", "C", etc.
+            continue
+        cleaned.append(word)
+
+    # Step 3: Return unique results
+    return list(set(cleaned))
