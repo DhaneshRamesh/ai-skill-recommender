@@ -93,7 +93,7 @@ You can test the `/recommend` endpoint here.
 ## 🤝 Contributors
 
 * Dhanesh Ramesh
-
+* Kaushik Narumanchi
 
 ---
 
