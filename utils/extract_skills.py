@@ -1,8 +1,19 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
 from transformers import pipeline
 
+# Initialize FastAPI app
+app = FastAPI()
+
+# Load the BERT NER pipeline once globally
 ner_pipeline = pipeline("token-classification", model="dslim/bert-base-NER", aggregation_strategy="simple")
 
-def extract_skills(text: str):
+# Pydantic input model
+class TextInput(BaseModel):
+    text: str
+
+# Skill extraction logic
+def extract_skills_logic(text: str):
     entities = ner_pipeline(text)
 
     # Step 1: Filter labels
@@ -20,3 +31,12 @@ def extract_skills(text: str):
 
     # Step 3: Return unique results
     return list(set(cleaned))
+
+# API route
+@app.post("/extract-skills/")
+def extract_skills(data: TextInput):
+    skills = extract_skills_logic(data.text)
+    return {"skills": skills}
+
+
+
