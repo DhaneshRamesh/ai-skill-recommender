@@ -1,19 +1,16 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from utils.extract_skills import extract_skills as extract_skills_from_utils
+from utils.extract_skills import extract_skills_logic  # ✅ Import here
 
+# Initialize FastAPI app
 app = FastAPI()
 
+# Input model
 class TextInput(BaseModel):
     text: str
 
-@app.get("/docs")  
-def index():
-    return {"message": "Welcome to the AI Skill Recommender API"}
-
+# API route
 @app.post("/extract-skills/")
 def extract_skills(data: TextInput):
-    text = data.text
-    skills = extract_skills_from_utils(text)
+    skills = extract_skills_logic(data.text)  # ✅ data.text is a string
     return {"skills": skills}
-   
