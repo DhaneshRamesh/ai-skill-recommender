@@ -1,52 +1,26 @@
-import os
+import io
 import pymupdf4llm
-from pathlib import Path
 
-def process_pdfs_in_folder(pdf_folder_path):
+def extract_text_from_pdf(file_bytes: bytes) -> str:
     """
-    Processes all PDF files in the specified folder,
-    extracts Markdown content, and prints it with separators.
-    
+    Extracts clean text from a PDF file in-memory using pymupdf4llm.
+    Converts to markdown, then strips formatting to raw text.
+
     Args:
-        pdf_folder_path (str): Full path to the folder containing PDFs
+        file_bytes (bytes): PDF file content in bytes
+
+    Returns:
+        str: Extracted plain text
     """
     try:
-        pdf_folder = Path(pdf_folder_path)
-        
-        if not pdf_folder.exists():
-            print(f"Error: Folder not found at '{pdf_folder_path}'")
-            return
-        
-        pdf_files = list(pdf_folder.glob("*.pdf"))
-        
-        if not pdf_files:
-            print(f"No PDF files found in '{pdf_folder}'")
-            return
-        
-        for pdf_file in pdf_files:
-            print(f"\nProcessing: {pdf_file.name}")
-            print("-" * 50)  # Separator before content
-            
-            try:
-                # Extract Markdown text from the PDF
-                md_text = pymupdf4llm.to_markdown(str(pdf_file))
-                print(md_text)
-                
-            except Exception as e:
-                print(f"Error processing {pdf_file.name}: {str(e)}")
-            
-            print("-" * 50)  # Separator after content
-            print("\n")  # Extra space between documents
-    
-    except Exception as e:
-        print(f"An unexpected error occurred: {str(e)}")
+        # Convert bytes to markdown
+        md_text = pymupdf4llm.to_markdown(io.BytesIO(file_bytes))
 
-# --- Main execution ---
-if __name__ == "__main__":
-    # Example path - replace with your actual path or use input()
-    pdf_folder_path = r"D:\Danny boi\ai-skill-recommender\Resumes"
-    
-    # Or uncomment below to input the path when running:
-    # pdf_folder_path = input("Enter the full path to your PDF folder: ")
-    
-    process_pdfs_in_folder(pdf_folder_path)
+        # Optional: strip markdown to plain text
+        plain_text = md_text.replace("#", "").replace("*", "").strip()
+
+        return plain_text
+
+    except Exception as e:
+        print(f"❌ Error extracting text from PDF: {e}")
+        return ""
