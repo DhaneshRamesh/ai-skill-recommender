@@ -1,44 +1,112 @@
 import requests
+import json
+from typing import Dict, List, Union
 
-def extract_skills_with_ollama(text: str) -> list:
+def extract_all_skills(markdown_text: str) -> Dict[str, Union[Dict[str, List[str]], List[str]]]:
     """
-    Sends resume text (plain or markdown) to Ollama (gemma:2b)
-    and returns a list of extracted skills/tools.
+    Extracts ALL professional skills from resume text with maximum completeness.
+    Returns structured JSON with both hard and soft skills.
     """
+    prompt = f"""Extract ALL professional skills from this resume with maximum completeness. Return STRICT JSON format:
+    {{
+        "technical_skills": {{
+            "programming_languages": [],
+            "frameworks": [],
+            "databases": [],
+            "devops_tools": [],
+            "data_science_tools": [],
+            "design_tools": []
+        }},
+        "platforms": [],
+        "soft_skills": [],
+        "certifications": [],
+        "languages": [],
+        "domain_skills": []
+    }}
 
-    # Step 1: Prompt template
-    prompt = (
-        "Extract all relevant job-related tools, technologies, platforms, or soft skills mentioned "
-        "in the following resume text. List one skill or tool per line. Do not include duplicates or empty lines.\n\n"
-        + text
-    )
+    RULES:
+    1. Include EVERY mentioned skill/tool (even if mentioned once)
+    2. Preserve original names/case (e.g., 'React' not 'react')
+    3. Extract from ALL sections (experience, education, projects, skills)
+    4. Include proficiency levels if specified (e.g., "Advanced R")
+    5. For technologies: include versions ONLY if critical (e.g., "Python 2.7")
+    6. For soft skills: include only professional attributes
+    7. Categorize properly based on context
+
+    SKILL EXAMPLES TO INCLUDE:
+    - Programming: Python, Java, C++
+    - Frameworks: React, TensorFlow, Rails
+    - Tools: Git, Tableau, Docker
+    - Platforms: AWS, Heroku, GCP
+    - Data: SQL, Pandas, Spark
+    - Design: Photoshop, Figma
+    - Soft: Leadership, Communication
+    - Domain: Financial Modeling, UX Research
+
+    RESUME TEXT:
+    {markdown_text[:15000]}"""
 
     try:
-        # Step 2: Call Ollama
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
                 "model": "gemma:2b",
                 "prompt": prompt,
-                "stream": False
-            }
+                "format": "json",
+                "stream": False,
+                "options": {"temperature": 0.1}  # Low temp for consistency
+            },
+            timeout=45  # Longer timeout for complex resumes
         )
-
-        response.raise_for_status()  # Raise if response is not 200 OK
-
-        # Step 3: Parse text output
-        output = response.json().get("response", "")
-        skills = [line.strip("-• ").strip() for line in output.splitlines() if line.strip()]
-
-        # Optional debug print
-        # print("🧠 Ollama raw response:\n", output)
-
-        return skills
-
-    except requests.RequestException as e:
-        print(f"❌ Ollama API request failed: {e}")
-        return []
-
+        response.raise_for_status()
+        
+        raw_output = response.json().get("response", "{}")
+        return validate_skills(json.loads(raw_output))
+        
     except Exception as e:
-        print(f"❌ Skill parsing failed: {e}")
-        return []
+        print(f"Error processing skills: {e}")
+        return empty_skills_template()
+
+def validate_skills(raw_data: dict) -> Dict[str, Union[Dict[str, List[str]], List[str]]]:
+    """Ensures output matches our schema with all required categories"""
+    template = empty_skills_template()
+    
+    if not isinstance(raw_data, dict):
+        return template
+    
+    # Validate technical_skills subcategories
+    if "technical_skills" in raw_data and isinstance(raw_data["technical_skills"], dict):
+        for tech_category in template["technical_skills"]:
+            if tech_category in raw_data["technical_skills"]:
+                template["technical_skills"][tech_category] = [
+                    skill for skill in raw_data["technical_skills"][tech_category]
+                    if isinstance(skill, str) and skill.strip()
+                ]
+    
+    # Validate top-level categories
+    for category in ["platforms", "soft_skills", "certifications", "languages", "domain_skills"]:
+        if category in raw_data and isinstance(raw_data[category], list):
+            template[category] = [
+                item for item in raw_data[category]
+                if isinstance(item, str) and item.strip()
+            ]
+    
+    return template
+
+def empty_skills_template() -> Dict[str, Union[Dict[str, List[str]], List[str]]]:
+    """Returns a complete empty skills structure"""
+    return {
+        "technical_skills": {
+            "programming_languages": [],
+            "frameworks": [],
+            "databases": [],
+            "devops_tools": [],
+            "data_science_tools": [],
+            "design_tools": []
+        },
+        "platforms": [],
+        "soft_skills": [],
+        "certifications": [],
+        "languages": [],
+        "domain_skills": []
+    }
