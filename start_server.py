@@ -3,28 +3,56 @@ import subprocess
 import webbrowser
 import time
 
-# Define port and Swagger URL
-port = "8001"
-url = f"http://127.0.0.1:{port}/docs#/default/extract_skills_extract_skills__post"
+# -----------------------------
+# CONFIG
+# -----------------------------
+API_FILE = "main"  # <- This is the file containing your FastAPI app
+PORT = "8001"
+URL = f"http://127.0.0.1:{PORT}/docs#/default/extract_skills_extract_skills__post"
+RELOAD = True  # Set to False in production
 
-try:
-    # Start Uvicorn server using the current Python interpreter
-    process = subprocess.Popen([
-        sys.executable,
-        "-m", "uvicorn",
-        "main:app",
-        "--reload",
-        "--port", port
-    ])
-    print(f"✅ Started FastAPI server on port {port} using: {sys.executable}")
+# -----------------------------
+# Start Uvicorn Server
+# -----------------------------
+def main():
+    try:
+        # Build Uvicorn launch command
+        uvicorn_cmd = [
+            sys.executable, "-m", "uvicorn",
+            f"{API_FILE}:app",
+            "--port", PORT
+        ]
+        if RELOAD:
+            uvicorn_cmd.append("--reload")
 
-    # Wait a few seconds to ensure the server starts
-    time.sleep(3)
+        # Start FastAPI server
+        process = subprocess.Popen(uvicorn_cmd)
+        print(f"\n✅ FastAPI server launched at: http://127.0.0.1:{PORT}")
+        print(f"📄 Running from file: {API_FILE}.py\n")
 
-    # Open Swagger UI in browser
-    webbrowser.open_new_tab(url)
-    print(f"🌐 Swagger UI opened at: {url}")
+        # Wait for server to be ready
+        time.sleep(3)
+        webbrowser.open_new_tab(URL)
+        print(f"🌐 Swagger UI opened at: {URL}\n")
 
-except Exception as e:
-    print("❌ Failed to start server:")
-    print(e)
+        # Wait for manual termination
+        process.wait()
+
+    except KeyboardInterrupt:
+        print("\n⛔ Shutting down server...")
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+        print("✅ Server stopped cleanly.")
+
+    except Exception as e:
+        print("❌ Failed to start FastAPI server:")
+        print(e)
+
+# -----------------------------
+# Entry Point
+# -----------------------------
+if __name__ == "__main__":
+    main()
