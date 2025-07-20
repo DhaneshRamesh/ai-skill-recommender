@@ -97,7 +97,7 @@ def extract_all_skills(text: str) -> Dict[str, Union[Dict[str, List[str]], List[
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
-                "model": "gemma:2b",
+                "model": model,
                 "prompt": prompt,
                 "format": "json",
                 "stream": False,
