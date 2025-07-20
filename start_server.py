@@ -2,57 +2,80 @@ import sys
 import subprocess
 import webbrowser
 import time
+import logging
+from typing import Optional
 
-# -----------------------------
-# CONFIG
-# -----------------------------
-API_FILE = "main"  # <- This is the file containing your FastAPI app
-PORT = "8001"
-URL = f"http://127.0.0.1:{PORT}/docs#/default/extract_skills_extract_skills__post"
-RELOAD = True  # Set to False in production
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# -----------------------------
-# Start Uvicorn Server
-# -----------------------------
-def main():
+# Configuration
+CONFIG = {
+    "api_file": "main",
+    "host": "127.0.0.1",
+    "port": "8001",
+    "reload": True,
+    "workers": 1,
+    "timeout": 30
+}
+
+def check_dependencies():
+    """Verify required packages are installed"""
     try:
-        # Build Uvicorn launch command
-        uvicorn_cmd = [
-            sys.executable, "-m", "uvicorn",
-            f"{API_FILE}:app",
-            "--port", PORT
-        ]
-        if RELOAD:
-            uvicorn_cmd.append("--reload")
+        import uvicorn
+        import pymupdf4llm
+        import fitz
+    except ImportError as e:
+        logger.error(f"Missing dependency: {e}")
+        raise RuntimeError("Run: pip install uvicorn pymupdf4llm pymupdf")
 
-        # Start FastAPI server
-        process = subprocess.Popen(uvicorn_cmd)
-        print(f"\n✅ FastAPI server launched at: http://127.0.0.1:{PORT}")
-        print(f"📄 Running from file: {API_FILE}.py\n")
-
-        # Wait for server to be ready
-        time.sleep(3)
-        webbrowser.open_new_tab(URL)
-        print(f"🌐 Swagger UI opened at: {URL}\n")
-
-        # Wait for manual termination
-        process.wait()
-
-    except KeyboardInterrupt:
-        print("\n⛔ Shutting down server...")
-        process.terminate()
-        try:
-            process.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            process.kill()
-        print("✅ Server stopped cleanly.")
-
+def start_server():
+    """Start the FastAPI server with configured options"""
+    check_dependencies()
+    
+    cmd = [
+        sys.executable, "-m", "uvicorn",
+        f"{CONFIG['api_file']}:app",
+        "--host", CONFIG["host"],
+        "--port", CONFIG["port"],
+        "--timeout-keep-alive", str(CONFIG["timeout"])
+    ]
+    
+    if CONFIG["reload"]:
+        cmd.append("--reload")
+    else:
+        cmd.extend(["--workers", str(CONFIG["workers"])])
+    
+    try:
+        logger.info("Starting server...")
+        proc = subprocess.Popen(cmd)
+        
+        url = f"http://{CONFIG['host']}:{CONFIG['port']}/docs"
+        logger.info(f"Server running at {url}")
+        
+        # Wait for server to initialize
+        time.sleep(2)
+        webbrowser.open(url)
+        
+        return proc
     except Exception as e:
-        print("❌ Failed to start FastAPI server:")
-        print(e)
+        logger.error(f"Failed to start server: {e}")
+        raise
 
-# -----------------------------
-# Entry Point
-# -----------------------------
 if __name__ == "__main__":
-    main()
+    try:
+        proc = start_server()
+        proc.wait()
+    except KeyboardInterrupt:
+        logger.info("Shutting down server...")
+        proc.terminate()
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        logger.info("Server stopped")
+    except Exception as e:
+        logger.error(f"Critical error: {e}")
+        sys.exit(1)
