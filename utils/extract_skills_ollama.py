@@ -50,7 +50,7 @@ def extract_all_skills(markdown_text: str) -> Dict[str, Union[Dict[str, List[str
         response = requests.post(
             "http://localhost:11434/api/generate",
             json={
-                "model": model,
+                "model": "llama3.1",
                 "prompt": prompt,
                 "format": "json",
                 "stream": False,

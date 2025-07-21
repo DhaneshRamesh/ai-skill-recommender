@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
+from typing import List
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 from utils.extract_skills_ollama import extract_all_skills  # Updated import
@@ -7,6 +8,7 @@ import tempfile
 import pymupdf4llm
 import tempfile
 import os
+from utils.extract_text import extract_text_from_pdf  # Importing text extraction utility
 
 # ✅ Enable debug logs
 DEBUG = True
@@ -44,7 +46,7 @@ async def extract_skills_from_pdf(file: UploadFile = File(...)):
     feeds it to Ollama (gemma:2b), and returns a list of extracted skills.
     """
     try:
-        skills = extract_skills_with_ollama(data.text)
+        skills = extract_all_skills(plain_text)
 
         if DEBUG:
             print("✅ Final response going to Swagger:", {"skills": skills or []})
@@ -87,7 +89,7 @@ async def extract_skills_from_pdf(file: UploadFile = File(...)):
         print(plain_text[:500], "\n")
 
         # Step 4: Send text to Ollama
-        skills = extract_skills_with_ollama(plain_text)
+        skills = extract_all_skills(plain_text)
 
         # Step 5: Clean up
         os.remove(temp_path)
