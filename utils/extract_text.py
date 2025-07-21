@@ -13,11 +13,13 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
         str: Extracted plain text
     """
     try:
-        # Convert bytes to markdown
+        print("[DEBUG] Starting text extraction from PDF bytes")
         md_text = pymupdf4llm.to_markdown(io.BytesIO(file_bytes))
+        print(f"[DEBUG] Extracted markdown preview (first 500 chars):\n{md_text[:500]}")
 
         # Optional: strip markdown to plain text
         plain_text = md_text.replace("#", "").replace("*", "").strip()
+        print(f"[DEBUG] Plain text preview (first 500 chars):\n{plain_text[:500]}")
 
         return plain_text
 
