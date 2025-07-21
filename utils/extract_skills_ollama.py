@@ -1,47 +1,37 @@
 import requests
-import json
+import json 
 from typing import Dict, List, Union
 
 def extract_all_skills(markdown_text: str) -> Dict[str, Union[Dict[str, List[str]], List[str]]]:
     """
-    Extracts ALL professional skills from resume text with maximum completeness.
-    Returns structured JSON with both hard and soft skills.
+    Extracts ALL explicitly mentioned skills, tools, and proficiencies from resume text.
+    Returns flat skill list JSON with uncertainty log.
     """
-    prompt = f"""Extract ALL professional skills from this resume with maximum completeness. Return STRICT JSON format:
+    prompt = f"""You are an expert in resume parsing and in the specific domain that this resume text relates to (e.g., computer science, engineering, finance, healthcare, etc.).
+
+Your task is to extract **only the skills, tools, softwares and proficiencies explicitly mentioned** in the following resume text, considering the context and domain to accurately identify relevant professional capabilities.
+
+Extract ALL explicitly mentioned skills, tools, technologies, methodologies, platforms, and proficiencies that are clearly presented as part of the candidate’s professional experience or expertise in their domains under the skills/highlights or any other relevant sections regardless of if it is legacy or latest.
+
+Include soft skills and domain-specific competencies only if they are explicitly described and clearly relevant to the candidate’s professional abilities (such as leadership, communication, project management, design, etc.).
+
+Exclude any terms that appear only casually, unrelated to the candidate’s skills, or without clear evidence of proficiency or experience.
+
+The output must be a **flat list of skills** — do **not categorize** them into groups such as "Programming Languages" or "Frameworks".
+
+Preserve original spelling and capitalization.
+Your memory resets with each new input. Do not accumulate knowledge across runs.
+
+When unsure about a particular skill or tool, or why it was excluded, explain clearly using the following format:
+
+```json
 {{
-    "technical_skills": {{
-        "programming_languages": [],
-        "frameworks": [],
-        "databases": [],
-        "devops_tools": [],
-        "data_science_tools": [],
-        "design_tools": []
-    }},
-    "platforms": [],
-    "soft_skills": [],
-    "certifications": [],
-    "languages": [],
-    "domain_skills": []
+  "Skills": [],
+  "Uncertain": [
+    {{ "term": "raw text snippet", "reason": "why it was excluded" }}
+  ]
 }}
-
-RULES:
-1. Include EVERY mentioned skill/tool (even if mentioned once)
-2. Preserve original names/case (e.g., 'React' not 'react')
-3. Extract from ALL sections (experience, education, projects, skills)
-4. Include proficiency levels if specified (e.g., "Advanced R")
-5. For technologies: include versions ONLY if critical (e.g., "Python 2.7")
-6. For soft skills: include only professional attributes
-7. Categorize properly based on context
-
-SKILL EXAMPLES TO INCLUDE:
-- Programming: Python, Java, C++
-- Frameworks: React, TensorFlow, Rails
-- Tools: Git, Tableau, Docker
-- Platforms: AWS, Heroku, GCP
-- Data: SQL, Pandas, Spark
-- Design: Photoshop, Figma
-- Soft: Leadership, Communication
-- Domain: Financial Modeling, UX Research
+Output ONLY valid JSON in the structure above. Do not include any additional text or explanation outside the JSON.
 
 RESUME TEXT:
 {markdown_text[:15000]}"""
@@ -66,62 +56,17 @@ RESUME TEXT:
         print(f"[DEBUG] Raw Ollama API response:\n{response.text}")
 
         raw_output = response.json().get("response", "{}")
-        
+
         try:
             parsed_skills = json.loads(raw_output)
             print("[DEBUG] Parsed skills JSON successfully")
         except json.JSONDecodeError as json_err:
             print(f"❌ JSON parsing error: {json_err}")
             print(f"[DEBUG] Raw output was:\n{raw_output}")
-            return empty_skills_template()
+            return {"Skills": [], "Uncertain": []}
 
-        return validate_skills(parsed_skills)
+        return parsed_skills if isinstance(parsed_skills, dict) else {"Skills": [], "Uncertain": []}
 
     except Exception as e:
         print(f"❌ Error processing skills: {e}")
-        return empty_skills_template()
-
-def validate_skills(raw_data: dict) -> Dict[str, Union[Dict[str, List[str]], List[str]]]:
-    """Ensures output matches our schema with all required categories"""
-    template = empty_skills_template()
-
-    if not isinstance(raw_data, dict):
-        print("[DEBUG] Raw data not dict, returning empty template")
-        return template
-
-    # Validate technical_skills subcategories
-    if "technical_skills" in raw_data and isinstance(raw_data["technical_skills"], dict):
-        for tech_category in template["technical_skills"]:
-            if tech_category in raw_data["technical_skills"]:
-                template["technical_skills"][tech_category] = [
-                    skill for skill in raw_data["technical_skills"][tech_category]
-                    if isinstance(skill, str) and skill.strip()
-                ]
-
-    # Validate top-level categories
-    for category in ["platforms", "soft_skills", "certifications", "languages", "domain_skills"]:
-        if category in raw_data and isinstance(raw_data[category], list):
-            template[category] = [
-                item for item in raw_data[category]
-                if isinstance(item, str) and item.strip()
-            ]
-
-    return template
-
-def empty_skills_template() -> Dict[str, Union[Dict[str, List[str]], List[str]]]:
-    """Returns a complete empty skills structure"""
-    return {
-        "technical_skills": {
-            "programming_languages": [],
-            "frameworks": [],
-            "databases": [],
-            "devops_tools": [],
-            "data_science_tools": [],
-            "design_tools": []
-        },
-        "platforms": [],
-        "soft_skills": [],
-        "certifications": [],
-        "languages": [],
-        "domain_skills": []
-    }
+        return {"Skills": [], "Uncertain": []}

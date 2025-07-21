@@ -17,29 +17,21 @@ app = FastAPI(
     version="1.1"
 )
 
-# Models for detailed skills structure
-class TechnicalSkills(BaseModel):
-    programming_languages: List[str]
-    frameworks: List[str]
-    databases: List[str]
-    devops_tools: List[str]
-    data_science_tools: List[str]
-    design_tools: List[str]
+# New Models for flat skill structure
+class UncertainSkill(BaseModel):
+    term: str
+    reason: str
 
-class SkillsResponse(BaseModel):
-    technical_skills: TechnicalSkills
-    platforms: List[str]
-    soft_skills: List[str]
-    certifications: List[str]
-    languages: List[str]
-    domain_skills: List[str]
+class FlatSkillsResponse(BaseModel):
+    Skills: List[str]
+    Uncertain: List[UncertainSkill]
 
 # Input model for plain text extraction
 class TextInput(BaseModel):
     text: str
 
 # Extract skills from raw plain text
-@app.post("/extract-skills/text/", response_model=SkillsResponse, summary="Extract skills from plain text")
+@app.post("/extract-skills/text/", response_model=FlatSkillsResponse, summary="Extract skills from plain text")
 async def extract_skills_from_text(data: TextInput):
     """
     Accepts raw text and returns extracted skills using Ollama.
@@ -47,7 +39,7 @@ async def extract_skills_from_text(data: TextInput):
     try:
         skills = extract_all_skills(data.text)
         if DEBUG:
-            print(f"[DEBUG] Skills extracted successfully: {skills}")
+            print(f"[DEBUG] Flat skills JSON extracted: {skills}")
         return skills
     except Exception as e:
         if DEBUG:
@@ -55,7 +47,7 @@ async def extract_skills_from_text(data: TextInput):
         return JSONResponse(status_code=500, content={"error": f"Ollama failed on text input: {str(e)}"})
 
 # Extract skills from a PDF resume
-@app.post("/extract-skills/pdf/", response_model=SkillsResponse, summary="Extract skills from resume (PDF upload)")
+@app.post("/extract-skills/pdf/", response_model=FlatSkillsResponse, summary="Extract skills from resume (PDF upload)")
 async def extract_skills_from_pdf(file: UploadFile = File(...)):
     """
     Accepts a PDF file, extracts text using pymupdf4llm, feeds it to Ollama, and returns extracted skills.
@@ -99,7 +91,7 @@ async def extract_skills_from_pdf(file: UploadFile = File(...)):
             print("[DEBUG] Temp file deleted.")
 
         if DEBUG:
-            print(f"[DEBUG] Skills extracted successfully: {skills}")
+            print(f"[DEBUG] Flat skills JSON extracted: {skills}")
         return skills
 
     except Exception as e:

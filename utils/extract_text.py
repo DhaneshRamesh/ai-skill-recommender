@@ -19,7 +19,7 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
 
         # Optional: strip markdown to plain text
         plain_text = md_text.replace("#", "").replace("*", "").strip()
-        print(f"[DEBUG] Plain text preview (first 500 chars):\n{plain_text[:500]}")
+        print(f"[DEBUG] Plain text preview (first 20000 chars):\n{plain_text[:20000]}")
 
         return plain_text
 
